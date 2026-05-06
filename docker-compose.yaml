@@ -1,0 +1,9 @@
+services:
+  nextjs-app:
+    container_name: elden-ring-randomizer
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3003:3000"
+    restart: always

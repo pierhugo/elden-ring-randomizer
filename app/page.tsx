@@ -24,6 +24,45 @@ export default function Home() {
     "hints",
   );
 
+  const isMajorBoss = (bossName: string) => {
+    const majorBosses = [
+      "Radahn",
+      "Messmer",
+      "Godfrey",
+      "Maliketh",
+      "Mohg",
+      "Romina",
+      "Omen King",
+      "Malenia",
+      "Rellana",
+      "Midra",
+      "Bayle",
+      "Radagon",
+      "Placidusax",
+      "Godrick",
+      "Margit",
+      "Putrescent Knight",
+      "Divine Beast Dancing Lion",
+      "Commander Gaius",
+      "Rykard",
+      "Niall",
+      "Fortissax",
+      "Godskin Duo",
+      "Scadutree Avatar",
+      "Golden Hippopotamus",
+      "Rennala",
+      "Loretta",
+      "Metyr",
+      "Astel",
+      "Regal Ancestor Spirit",
+      "Fire Giant",
+      "Elden Beast",
+    ];
+    return majorBosses.some(
+      (mb) => bossName.toLowerCase().includes(mb.toLowerCase()) || mb.toLowerCase().includes(bossName.toLowerCase())
+    );
+  };
+
   useEffect(() => {
     fetch("/default-log.txt")
       .then((res) => res.text())
@@ -105,6 +144,15 @@ export default function Home() {
                   className="flex items-center justify-between px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-subtle)]"
                 >
                   <div className="flex items-center gap-1">
+                    {isMajorBoss(placement.boss) && (
+                      <svg
+                        className="w-4 h-4 text-[var(--gold-500)] shrink-0"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm0 14a6 6 0 110-12 6 6 0 010 12z" />
+                      </svg>
+                    )}
                     <span className="text-[13px] text-[var(--text-secondary)] font-semibold">
                       {placement.boss}
                       {placement.scaling && (
