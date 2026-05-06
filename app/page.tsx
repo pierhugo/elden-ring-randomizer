@@ -48,6 +48,21 @@ export default function Home() {
     return region.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   };
 
+  // Major bosses to highlight
+  const majorBosses = [
+    'radahn', 'messmer', 'godfrey', 'maliketh', 'mohg', 'romina',
+    'omen king', 'malenia', 'rellana', 'midra', 'bayle', 'radagon',
+    'placidusax', 'godrick', 'margit', 'putrescent knight', 'divine beast dancing lion',
+    'commander gaius', 'rykard', 'niall', 'fortissax', 'godskin duo',
+    'scadutree avatar', 'golden hippopotamus', 'rennala', 'loretta',
+    'metyr', 'astel', 'regal ancestor spirit', 'fire giant', 'elden beast'
+  ];
+
+  const isMajorBoss = (bossName: string): boolean => {
+    const normalized = bossName.toLowerCase();
+    return majorBosses.some(b => normalized.includes(b));
+  };
+
   return (
     <main className="min-h-screen bg-[#020617] text-[#F8FAFC] font-['Fira_Sans',sans-serif]">
       <style jsx global>{`
@@ -121,24 +136,36 @@ export default function Home() {
                               {formatLocationName(location)}
                             </h4>
                             <div className="space-y-2">
-                              {(placements as any[]).map((placement: any, idx: number) => (
-                                <div
-                                  key={idx}
-                                  className="group p-3 bg-[#020617] border border-[#1E293B] hover:border-[#EF4444]/50 transition-all duration-200"
-                                >
-                                  <div className="flex items-start justify-between gap-2">
-                                    <div className="flex-1">
-                                      <div className="text-[#EF4444] font-['Fira_Code',monospace] text-sm font-bold">
-                                        {placement.boss}
+                              {(placements as any[]).map((placement: any, idx: number) => {
+                                const isMajor = isMajorBoss(placement.boss);
+                                return (
+                                  <div
+                                    key={idx}
+                                    className={`group p-3 bg-[#020617] border transition-all duration-200 ${
+                                      isMajor
+                                        ? 'border-[#F59E0B] bg-[#1E293B]/50 shadow-[0_0_10px_rgba(245,158,11,0.1)]'
+                                        : 'border-[#1E293B] hover:border-[#EF4444]/50'
+                                    }`}
+                                  >
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="flex-1">
+                                        <div className={`font-['Fira_Code',monospace] text-sm font-bold flex items-center gap-1 ${
+                                          isMajor ? 'text-[#F59E0B]' : 'text-[#EF4444]'
+                                        }`}>
+                                          {isMajor && <span className="text-[10px]">★</span>}
+                                          {placement.boss}
+                                        </div>
+                                        <div className="text-[#64748B] text-[10px] font-['Fira_Code',monospace] mt-1">
+                                          Was: {placement.originalBoss}
+                                        </div>
                                       </div>
-                                      <div className="text-[#64748B] text-[10px] font-['Fira_Code',monospace] mt-1">
-                                        Was: {placement.originalBoss}
-                                      </div>
+                                      <div className={`w-2 h-2 mt-1 transition-opacity duration-200 ${
+                                        isMajor ? 'bg-[#F59E0B]' : 'bg-[#EF4444] opacity-0 group-hover:opacity-100'
+                                      }`} />
                                     </div>
-                                    <div className="w-2 h-2 bg-[#EF4444] mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                                   </div>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         ))}
