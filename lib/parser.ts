@@ -91,21 +91,38 @@ export function parseLogFile(content: string): Partial<RandomizerSeed> {
 
     // Parse boss placements (ignore miniboss placements as per user request)
     if (inBossPlacements && trimmedLine.startsWith('Replacing ') && trimmedLine.includes(' in ') && trimmedLine.includes(': ')) {
-      const match = trimmedLine.match(/^Replacing (.+?) in (.+?): (.+?) from (.+?)(?: \(scaling \d+->\d+\))?$/);
+      const match = trimmedLine.match(/^Replacing (.+?) in (.+?): (.+?) from (.+)$/);
       if (match) {
-        const [, originalBoss, location, newBoss] = match;
+        const [, originalBoss, location, newBoss, fromLocation] = match;
 
         // Remove (#xxxxxx) IDs from boss names
         const cleanOriginalBoss = originalBoss.replace(/\(#\d+\)/g, '').trim();
         const cleanNewBoss = newBoss.replace(/\(#\d+\)/g, '').trim();
+
+        // Extract scaling from the "from" location if present
+        const scalingMatch = fromLocation.match(/^(.+?) \(scaling (\d+)->(\d+)\)$/);
+        let cleanFromLocation = fromLocation;
+        let scaling = undefined;
+
+        if (scalingMatch) {
+          cleanFromLocation = scalingMatch[1];
+          scaling = {
+            from: parseInt(scalingMatch[2]),
+            to: parseInt(scalingMatch[3]),
+          };
+        }
+
+        const placement: BossPlacement = {
+          boss: cleanNewBoss,
+          location: location.trim(),
+          region: getRegionFromLocation(location.trim()),
+          originalBoss: cleanOriginalBoss,
+          newBoss: cleanNewBoss,
+          scaling,
+        };
         
         if (result.bossPlacements) {
-          result.bossPlacements.push({
-            boss: cleanNewBoss,
-            location: location.trim(),
-            originalBoss: cleanOriginalBoss,
-            newBoss: cleanNewBoss,
-          });
+          result.bossPlacements.push(placement);
         }
       }
     }
@@ -129,14 +146,18 @@ export function parseLogFile(content: string): Partial<RandomizerSeed> {
     }
 
     // Parse spoilers (item placements)
-    if (inSpoilers && trimmedLine.includes(' in ') && trimmedLine.includes(': Replaces ')) {
-      const match = trimmedLine.match(/^(.+?) in (.+?): Replaces (.+?)\.(?:\s+\(cost: (\d+)\))?$/);
+    // Format: NewItem in Location: SourceInfo. Replaces OriginalItem. (cost: N)
+    if (inSpoilers && trimmedLine.includes(' in ') && trimmedLine.includes('Replaces ')) {
+      const match = trimmedLine.match(/^(.+?) in (.+?): (.*?) Replaces (.+?)\.?(?:\s+\(cost: (\d+)\))?$/);
       if (match) {
-        const [, newItem, location, originalItem, cost] = match;
+        const [, newItem, location, source, originalItem, cost] = match;
         const placement: ItemPlacement = {
           originalItem: originalItem.trim(),
           newItem: newItem.trim(),
           location: location.trim(),
+          region: getRegionFromLocation(location.trim()),
+          source: source.trim(),
+          sourceType: getSourceType(source.trim()),
           type: getItemType(newItem.trim()),
         };
         if (cost) {
@@ -155,7 +176,7 @@ export function parseLogFile(content: string): Partial<RandomizerSeed> {
 }
 
 function getItemType(item: string): ItemPlacement['type'] {
-  if (item.includes('Sword') || item.includes('Axe') || item.includes('Spear') || 
+  if (item.includes('Sword') || item.includes('Axe') || item.includes('Spear') ||
       item.includes('Bow') || item.includes('Staff') || item.includes('Seal') ||
       item.includes('Whip') || item.includes('Fist') || item.includes('Katana') ||
       item.includes('Halberd') || item.includes('Greataxe') || item.includes('Greathammer')) {
@@ -169,7 +190,10 @@ function getItemType(item: string): ItemPlacement['type'] {
       item.includes('Greaves') || item.includes('Robes') || item.includes('Shirt')) {
     return 'armor';
   }
-  if (item.includes('Cookbook') || item.includes('Note:') || item.includes('Rune')) {
+  if (item.includes('Talisman')) {
+    return 'talisman';
+  }
+  if (item.includes('Cookbook') || item.includes('Note:')) {
     return 'consumable';
   }
   if (item.includes('Key') || item.includes('Medalion') || (item.includes('Rune') && item.includes('Great'))) {
@@ -178,7 +202,68 @@ function getItemType(item: string): ItemPlacement['type'] {
   if (item.includes('Smithing') || item.includes('Whetblade') || item.includes('Bell Bearing')) {
     return 'upgrade';
   }
+  if (item.includes('Stone') || item.includes('Crystal Tear') || item.includes('Ash of War')) {
+    return 'material';
+  }
   return 'consumable';
+}
+
+const REGION_MAP: Record<string, string[]> = {
+  'Limgrave': ['Gatefront', 'Ship', 'Dragon Burn', 'Murkwater', 'Mistwood', 'Cliffbottom', 'Stilwater', 'Watermea', 'Seaside', 'Lun山东', 'Fort', 'Waypoint'],
+  'Stormveil': ['Stormveil', 'Gate'],
+  'Liurnia': ['Liurnia', 'Raya Lucaria', 'Academy', 'Ranni', 'Finger', 'Carian', 'Boil', 'Presbytery', 'Rose Church', 'Fallgrim', 'Temple of Eiglay'],
+  'Caelid': ['Caelid', 'Redmane', 'Caria', 'Swamp', 'War-Dead', 'Imps', 'Cathedral of Dragon Communion', 'Bestial Sanctum'],
+  'Deeproot Depths': ['Deeproot', ' Nameless', 'Prince of Death', 'Cathedral of Full'],
+  'Mountaintops of the Giants': ['Mountaintops', 'Helphen', 'Stoneside', 'Snowfield', 'Wailing', 'Garden of Remem'],
+  'Crumbling Farum Azula': ['Crumbling Farum Azula', 'Farum Azula', 'Ashen', 'Beast'],
+  'Leyndell': ['Leyndell', 'Capital', 'Erdtree', 'Ashen Capital'],
+  'Consecrated Snowfield': ['Consecrated Snowfield', 'Ordina', 'Annewn', 'Ritual'],
+  'Miquella\'s Haligtree': ['Miquella', 'Haligtree', 'Elphael', 'Consecrated'],
+  'Mohgwyn Palace': ['Mohgwyn', 'Palace', 'Cocoon'],
+  'Malefactor\'s Evergaol': ['Malefactor', 'Evergaol'],
+};
+
+function getRegionFromLocation(location: string): string | undefined {
+  const lower = location.toLowerCase();
+  
+  for (const [region, keywords] of Object.entries(REGION_MAP)) {
+    for (const keyword of keywords) {
+      if (lower.includes(keyword.toLowerCase())) {
+        return region;
+      }
+    }
+  }
+  
+  return undefined;
+}
+
+function getSourceType(source: string): ItemPlacement['sourceType'] {
+  const lower = source.toLowerCase();
+  if (lower.includes('sold by') || lower.includes('shop') || lower.includes('at the') || lower.includes('for ')) {
+    return 'shop';
+  }
+  if (lower.includes('dropped by') || lower.includes('defeating')) {
+    return 'enemy';
+  }
+  if (lower.includes('given by') || lower.includes('quest')) {
+    return 'quest';
+  }
+  if (lower.includes('chest') || lower.includes('caravan') || lower.includes('coffin')) {
+    return 'chest';
+  }
+  if (lower.includes('from small scarab') || lower.includes('from scarab')) {
+    return 'drop';
+  }
+  if (lower.includes('from')) {
+    return 'drop';
+  }
+  if (lower.includes('in ') || lower.includes('inside')) {
+    return 'pickup';
+  }
+  if (lower.includes('looping')) {
+    return 'pickup';
+  }
+  return 'other';
 }
 
 // For client-side usage with uploaded file
